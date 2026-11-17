@@ -1,12 +1,15 @@
 # E-Surance System Architecture
 
-E-Surance is an electronic insurance management system built from three Python
-programs: a server, a client menu, and a peer node. It uses two models in one
-application. Records go through a central server (client-server). Messages and
-claim documents go directly between users (peer-to-peer).
+E-Surance is an electronic insurance management system. It uses two models in
+one application. Records go through a central server (client-server). Messages
+and claim documents go directly between users (peer-to-peer).
 
-All communication uses TCP sockets from the Python standard library. The system
-does not use an RPC framework or a web framework.
+The backend (`backend/`) is Python: a server, the client programs, and a peer
+node. Between these programs, all communication uses TCP sockets from the Python
+standard library, with no RPC framework. The web frontend (`frontend/ui`) reaches
+the system only through the bridge (`backend/bridge.py`) on the user's own
+computer, which turns browser actions into the same protocol messages
+(Section 7). Module paths below are relative to `backend/`.
 
 Source: Section 2 of the E-Surance Project Documentation, with the module map
 and request flow taken from Sections 3, 4 and 7. Run commands are in the README.
@@ -86,7 +89,10 @@ Each type of data is on the model that fits it:
 | `client/main.py` | Client | The text menu for customers, agents, and administrators; uses a `PeerNode` for messages and documents |
 | `peer/node.py` | Client, peer | The `PeerNode` class: listener (server role), send functions (client role), peer table, receiver safety checks |
 | `peer/main.py` | Standalone peer | Uses `PeerNode` without the server (branch office); joins with `--connect` to one known peer |
-| `tests/test_esurance.py` | Tests | The 16 automated tests, with a real server and real peers on free local ports |
+| `bridge.py` | Each user's computer | The web bridge: for each browser login, one `EsuranceClient` and one `PeerNode`; HTTP API and live events for the browser |
+| `tests/test_esurance.py` | Tests | The 16 automated tests of the design, with a real server and real peers on free local ports |
+| `tests/test_bridge.py` | Tests | 3 tests of the bridge over HTTP: records, a message and a document between two logins, and the server down |
+| `../frontend/ui/` | Browser | React + Vite + Tailwind web app: a portal for each role at `/customer`, `/agent`, `/admin` |
 
 ## 3. The Server: Three Layers
 
@@ -170,15 +176,59 @@ receives, or from another peer (`PEERS`).
 | Open client sockets | `_connections_lock` | A new connection during shutdown |
 | Peer table | `PeerNode._lock` | Two incoming messages that add peers at the same time |
 | Client connection | `EsuranceClient._lock` | Two requests on one socket at the same time |
+| Bridge logins | `Bridge._lock` | Two browser logins or logouts at the same time |
+| Message history, event listeners | `BridgeSession._lock` | A peer message that arrives while the browser reads the history |
 
 Each lock is held only for a short operation. No code path holds two different
 locks at the same time, so a deadlock cannot occur.
 
-## 7. Running the Tests
+## 7. The Web Bridge and the Frontend
+
+A browser cannot open a raw TCP socket, so it cannot be a client program by
+itself. Each user's computer runs the bridge next to the frontend:
 
 ```
+ Browser (frontend/ui, port 3000)
+     |  HTTP /api/... on this computer
+     v
+ bridge.py (port 8000)
+     |-- one BridgeSession for each browser login
+     |     |-- EsuranceClient --- TCP, length + JSON ---> server (port 5000)
+     |     '-- PeerNode (own port) <== TCP, direct ==> other users' peer nodes
+     '-- Server-Sent Events: incoming messages and documents, at once
+```
+
+So the design does not change: each login still has one connection to the
+server and one peer node, and documents still go from one user's peer node to
+the other's. The bridge only carries clicks to the same code that the text menu
+uses.
+
+| Browser request | What the bridge does |
+| --- | --- |
+| `POST /api/login` | Starts a `PeerNode`, then `LOGIN` with its `p2p_port`; returns a token for this browser tab |
+| `POST /api/call` | Sends one client-server request (`LIST_POLICIES`, `FILE_CLAIM`, ...) on this login's connection; `LOGIN`, `LOGOUT` and `REGISTER` are refused here |
+| `GET /api/status` | `PING` on this login's connection: the page shows Server online or offline (every 5 s) |
+| `GET /api/peers` | `LIST_PEERS`, then the peer table; when the server is off, the last peer table |
+| `POST /api/messages` | `CHAT` directly to the other peer |
+| `POST /api/documents` | `FILE` directly to the other peer, then `RECORD_DOCUMENT` with the checksum |
+| `GET /api/received` | The documents in this login's inbox, each with its SHA-256 |
+| `GET /api/events` | Server-Sent Events for incoming `CHAT` and `FILE` |
+
+The bridge listens on 127.0.0.1 by default, so only the browser on the same
+computer can use it. The peer node listens on all addresses, so other users'
+peers can reach it.
+
+The agent's claim page compares each recorded checksum with the files in the
+agent's inbox: "Verified copy" means that the received file has the same
+SHA-256 value as the one that the server recorded.
+
+## 8. Running the Tests
+
+```
+cd backend
 python -m unittest -v
 ```
 
-All 16 automated tests run in about 2 seconds on Python 3.13. Each test starts a
-real server and real peers on free local ports, with a temporary database.
+All 19 automated tests run in about 4 seconds on Python 3.13: the 16 tests of
+the design and 3 tests of the bridge. Each test starts a real server and real
+peers on free local ports, with a temporary database.
