@@ -8,8 +8,8 @@ claim documents go directly between users (peer-to-peer).
 All communication uses TCP sockets from the Python standard library. The system
 does not use an RPC framework or a web framework.
 
-Source: Section 2 of the [E-Surance Project Documentation](https://claude.ai/artifact/3fN4aTCqSkhM8MXUD6YgQy) doc, with the
-module map and request flow taken from Sections 3, 4 and 7.
+Source: Section 2 of the E-Surance Project Documentation, with the module map
+and request flow taken from Sections 3, 4 and 7. Run commands are in the README.
 
 ## 1. The Hybrid Model
 
@@ -81,9 +81,12 @@ Each type of data is on the model that fits it:
 | `server/handlers.py` | Server | Service layer: the `Service` class finds the function for the action, checks the role, applies the business rules, keeps the peer directory |
 | `server/database.py` | Server | Data layer: contains all SQL, protects the connection with one lock, makes each change in one transaction |
 | `common/protocol.py` | All | The message format (4-byte length header + JSON body), shared by the server, the client, and the peer |
-| `client/api.py` | Client | The connection to the server |
+| `common/console.py` | Client, standalone peer | Text-menu helpers; one print lock, so a message that arrives while the user types prints cleanly |
+| `client/api.py` | Client | `EsuranceClient`: the one connection to the server; no automatic retry; reconnects and logs in again before the next request |
+| `client/main.py` | Client | The text menu for customers, agents, and administrators; uses a `PeerNode` for messages and documents |
 | `peer/node.py` | Client, peer | The `PeerNode` class: listener (server role), send functions (client role), peer table, receiver safety checks |
 | `peer/main.py` | Standalone peer | Uses `PeerNode` without the server (branch office); joins with `--connect` to one known peer |
+| `tests/test_esurance.py` | Tests | The 16 automated tests, with a real server and real peers on free local ports |
 
 ## 3. The Server: Three Layers
 
@@ -177,5 +180,5 @@ locks at the same time, so a deadlock cannot occur.
 python -m unittest -v
 ```
 
-All 16 automated tests run in about 1 second on Python 3.13. Each test starts a
+All 16 automated tests run in about 2 seconds on Python 3.13. Each test starts a
 real server and real peers on free local ports, with a temporary database.
