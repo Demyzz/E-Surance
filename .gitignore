@@ -8,9 +8,3 @@ venv/
 esurance.db
 *.db-journal
 received/
-
-# frontend
-node_modules/
-dist/
-.env.local
-*.log

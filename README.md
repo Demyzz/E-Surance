@@ -19,39 +19,26 @@ Policies, payments and claims go through one central server and one SQLite datab
 
 ## Prerequisites
 
-Make sure the following are installed on your machine:
+Make sure the following is installed on your machine:
 
-- Python 3.9 or newer
-- Node.js 20.19 or newer, with npm
+- Python 3.9 or newer (tested on Python 3.13)
 
-Dependencies are listed in:
-
-- The Python standard library only (Backend): nothing to install
-- `package.json` (Frontend)
+The project uses only the Python standard library (`socket`, `threading`, `json`, `sqlite3`, `hashlib`), so there is nothing to install with pip.
 
 ---
 
 ## Installation
-
-### Backend
 
 ```bash
 git clone https://github.com/Demyzz/E-Surance.git
 cd E-Surance
 ```
 
-The backend uses only the Python standard library (`socket`, `threading`, `json`, `sqlite3`, `hashlib`, `http.server`), so there is no `pip install` step.
-
-### Frontend
-
-```bash
-cd frontend/ui
-npm install
-```
-
 ---
 
 ## Get Your IP Address
+
+Each computer needs the IP address of the server computer.
 
 ### Windows
 
@@ -67,129 +54,113 @@ ip addr
 
 On macOS you can also use `ipconfig getifaddr en0`.
 
+Use the server's network address (for example `192.168.1.10`) on every computer, also on the server computer itself. The server tells the other users where your peer is from the address it sees, so `127.0.0.1` works only when all programs run on one computer.
+
 ---
 
 ## Running the Project
 
-E-Surance has one **server** for the whole group, and on **each user's computer** a **bridge** and the **frontend**. The bridge keeps that user's connection to the server and their peer node, which sends and receives messages and documents directly.
+Run every command from the project folder (`E-Surance/`). On some computers the command is `python3` instead of `python`.
 
-### Start the Server (one computer)
-
-From the project folder (`E-Surance/`), run:
+### Start the Server
 
 ```bash
 python -m server.main
 ```
 
-It listens on TCP port 5000 and keeps all records in `esurance.db`.
+The server listens on TCP port 5000 and keeps all records in `esurance.db`. Options: `--port 5001`, `--db other.db`, `--verbose` (log every request). Press Ctrl+C to stop.
 
-### Start the Bridge (each user's computer)
-
-From the project folder, run:
+### Start a Client (Customer, Agent, or Administrator)
 
 ```bash
-python bridge.py --server <server_ip_address>:5000
+python -m client.main --server <server_ip_address>:5000
 ```
 
 Example:
 
 ```bash
-python bridge.py --server 192.168.1.10:5000
+python -m client.main --server 192.168.1.10:5000
 ```
 
-Use the server's network address, also on the server computer itself. The server tells other users where your peer node is from the address it sees, so `127.0.0.1` works only when everyone uses the same computer.
+Each client is also a peer node. It shows messages at once, and saves received documents in `received/`. Options: `--peer-port 6001` (default: any free port), `--inbox other_folder`.
 
-### Start the Frontend (each user's computer)
-
-Navigate to the `frontend/ui/` directory and run:
+### Start a Standalone Peer (Branch Office, No Server)
 
 ```bash
-npm run dev
+python -m peer.main --name alpha --port 6001
 ```
 
-The frontend passes every `/api` request to the bridge on `http://127.0.0.1:8000`. If you start the bridge with another `--port`, copy `.env.example` to `.env.local` and change `BRIDGE_URL`.
-
-Without the dev server: run `npm run build` once, and the bridge serves the built app itself at `http://localhost:8000/<customer|agent|admin>`.
-
----
-
-## Access the Application
-
-Open the following URL in your browser:
-
-```txt
-http://localhost:3000/<customer|agent|admin>
+```bash
+python -m peer.main --name beta --port 6002 --connect <alpha_ip_address>:6001
 ```
 
-Example:
-
-```txt
-http://localhost:3000/customer
-```
-
-Each browser tab keeps its own login, so one computer can show a customer, an agent and an administrator in three tabs.
+A new peer connects to one known peer with `--connect`, asks it for its peers, and so learns the other peers without the server.
 
 ### Demo Accounts
+
+The server makes these accounts when the database is new. Customers register from the client menu.
 
 | Role | Username | Password |
 | --- | --- | --- |
 | Administrator | `admin` | `admin123` |
 | Agent | `agent` | `agent123` |
 
-Customers register on the customer page. Change the demo passwords before a real use.
+Change these passwords before a real use.
 
 ---
 
 ## Demonstration
 
-The full claim lifecycle: three roles, the two models, and one server failure.
+The full claim lifecycle: all three roles, the two models, and one server failure. Start the server, then three clients (customer, agent, administrator), on one computer or on different computers.
 
-| Step | Who | What to do | Model |
-| --- | --- | --- | --- |
-| 1 | Customer | Register `juan`, then log in | Client-server |
-| 2 | Agent | Policies → New policy: `juan`, Life, coverage 500,000, premium 1,200, 12 months | Client-server |
-| 3 | Customer | My policies → Pay premium | Client-server |
-| 4 | Customer | My policies → File a claim: 45,000, hospital confinement | Client-server |
-| 5 | Customer | Messages: the agent shows as online (the server's directory) | Client-server |
-| 6 | Customer | Messages → "Hello, I filed a claim." It appears at once on the agent's screen | Peer-to-peer |
-| 7 | Customer | Claims → the claim → Send document: `medical_report.pdf` to the agent | Peer-to-peer |
-| 8 | Customer | (same step) The name, size and SHA-256 checksum are recorded on the claim | Client-server |
-| 9 | Agent | Claims → the claim: the document shows **Verified copy** | Client-server |
-| 10 | Administrator | Overview → Review → Approve | Client-server |
-| 11 | Server | Ctrl+C (or `kill -9`, or End task) | None |
-| 12 | Customer | The page shows **Server offline**; records do not load | Client-server |
-| 13 | Customer | Messages → send a message; it still arrives | Peer-to-peer |
-| 14 | Server | `python -m server.main` again, with the same `esurance.db` | None |
-| 15 | Customer | Within 5 seconds: **Server online**, and the policy is there again | Client-server |
+| Step | Who | Menu item | What happens | Model |
+| --- | --- | --- | --- | --- |
+| 1 | Customer | Register as a customer, then Log in | Account `juan` | Client-server |
+| 2 | Agent | Log in (`agent` / `agent123`), Create a policy for a customer | `juan`, `LIFE`, coverage `500000`, premium `1200`, `12` months: POL-2026-0001 | Client-server |
+| 3 | Customer | Pay a premium | `POL-2026-0001`, `1200`: PAY-2026-0001 | Client-server |
+| 4 | Customer | File a claim | `45000`, hospital confinement: CLM-2026-0001 (PENDING) | Client-server |
+| 5 | Customer | Online users (peer directory) | The server tells where the agent is | Client-server (directory) |
+| 6 | Customer | Send a message to a user | "Hello, I filed a claim." appears at once on the agent's screen | Peer-to-peer |
+| 7 | Customer | Send a claim document to a user | A file such as `medical_report.pdf` goes directly to the agent | Peer-to-peer |
+| 8 | Customer | (same step) | The file name, size, and SHA-256 checksum are recorded on the claim | Client-server |
+| 9 | Agent | Claims of my customers, Documents of a claim | 1 document; the checksum is the same as the file in the agent's `received/` | Client-server |
+| 10 | Administrator | Log in (`admin` / `admin123`), Approve or reject a claim | CLM-2026-0001 is APPROVED | Client-server |
+| 11 | Server | Ctrl+C (or `kill -9`, or End task) | The server stops | None |
+| 12 | Customer | My policies | "The server is not available" | Client-server |
+| 13 | Customer | Send a message to a user | The message still arrives | Peer-to-peer |
+| 14 | Server | `python -m server.main` again | Starts with the same `esurance.db` | None |
+| 15 | Customer | My policies | The client connects and logs in again by itself; the policy is there | Client-server |
+
+The numbers have the current year, for example POL-2026-0001.
 
 ---
 
 ## Run the Tests
 
-From the project folder, run:
-
 ```bash
 python -m unittest -v
 ```
 
-19 automated tests take about 4 seconds: the 16 tests of the design document (protocol, roles, scope, many clients, peer discovery, file transfer and checksum, server crash and recovery) and 3 tests of the bridge. Each test starts a real server and real peers on free local ports, with a temporary database.
+The 16 automated tests take about 2 seconds. Each test starts a real server and real peers on free local ports, with a temporary database.
 
----
-
-## Text Menu (Optional)
-
-The same system also runs without a browser:
-
-```bash
-python -m client.main --server <server_ip_address>:5000
-```
-
-```bash
-python -m peer.main --name branch1 --port 6001
-python -m peer.main --name branch2 --port 6002 --connect <branch1_ip_address>:6001
-```
-
-The first command is the text menu for customers, agents and administrators. The `peer.main` commands start standalone peers (a branch office) that find each other and exchange messages and files without the server.
+| No. | Test | What the test shows |
+| --- | --- | --- |
+| 1 | Login is necessary | A request without a login gets "log in first" |
+| 2 | Register and log in | A duplicate username and a wrong password are refused |
+| 3 | Password storage | The database keeps a 64-character hash, not the password |
+| 4 | Roles | A customer cannot create a policy or see the summary; an agent cannot decide a claim or create a user |
+| 5 | Full insurance flow | Policy, payment, claim, approval, one decision only, summary |
+| 6 | Scope | A customer cannot see, pay, or claim on the policy of a different customer |
+| 7 | Bad input | Wrong policy type, text as an amount, unknown customer, unknown action |
+| 8 | Many clients | 20 clients make 200 payments at the same time; all 200 references are different |
+| 9 | Peer directory | The server lists the online peers, and removes a peer when it disconnects |
+| 10 | Peer message | A message arrives, and the receiver learns the address of the sender |
+| 11 | Peer file transfer | A 300,000-byte file arrives with the same bytes; a second file with the same name does not replace the first |
+| 12 | Changed file | A file with a wrong checksum and an unsafe name is refused, and nothing is saved |
+| 13 | Discovery without the server | A peer learns a third peer from a second peer |
+| 14 | Peers without the server | Two peers exchange messages with no server running |
+| 15 | Hybrid document flow | Directory, direct file, checksum record; the agent sees the same checksum |
+| 16 | Server crash and recovery | The client detects the stop, the peers continue, and after the restart the client logs in again with the same records |
 
 ---
 
@@ -216,10 +187,7 @@ E-Surance/
 │   └── main.py            # standalone peer for the branch office
 ├── tests/
 │   ├── __init__.py
-│   ├── test_esurance.py   # the 16 automated tests
-│   └── test_bridge.py     # 3 tests of the web bridge
-├── bridge.py              # web bridge: lets the browser use the system
-├── frontend/ui/           # React + Vite + Tailwind web app
+│   └── test_esurance.py   # the 16 automated tests
 ├── received/              # created automatically: documents a peer receives
 └── esurance.db            # created automatically: the SQLite database
 ```
