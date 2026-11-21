@@ -1,6 +1,6 @@
 """Network layer: accept TCP connections, one thread for each client.
 
-Run from the backend folder:
+Run from the project folder:
 
     python -m server.main                 # port 5000, database esurance.db
     python -m server.main --port 5001 --db test.db

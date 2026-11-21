@@ -1,4 +1,4 @@
-// The browser side of the bridge (backend/bridge.py).
+// The browser side of the bridge (bridge.py in the project folder).
 // Records go through /api/call, which sends the same protocol request that
 // the text menu sends. Messages and documents go to the bridge's peer node,
 // which sends them directly to the other user's peer node.

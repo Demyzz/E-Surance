@@ -1,4 +1,4 @@
-"""The 16 automated tests. Run from the backend folder:
+"""The 16 automated tests. Run from the project folder:
 
     python -m unittest -v
 

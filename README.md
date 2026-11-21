@@ -36,7 +36,8 @@ Dependencies are listed in:
 ### Backend
 
 ```bash
-cd backend
+git clone https://github.com/Demyzz/E-Surance.git
+cd E-Surance
 ```
 
 The backend uses only the Python standard library (`socket`, `threading`, `json`, `sqlite3`, `hashlib`, `http.server`), so there is no `pip install` step.
@@ -74,7 +75,7 @@ E-Surance has one **server** for the whole group, and on **each user's computer*
 
 ### Start the Server (one computer)
 
-Navigate to the `backend/` directory and run:
+From the project folder (`E-Surance/`), run:
 
 ```bash
 python -m server.main
@@ -84,7 +85,7 @@ It listens on TCP port 5000 and keeps all records in `esurance.db`.
 
 ### Start the Bridge (each user's computer)
 
-Navigate to the `backend/` directory and run:
+From the project folder, run:
 
 ```bash
 python bridge.py --server <server_ip_address>:5000
@@ -165,7 +166,7 @@ The full claim lifecycle: three roles, the two models, and one server failure.
 
 ## Run the Tests
 
-Navigate to the `backend/` directory and run:
+From the project folder, run:
 
 ```bash
 python -m unittest -v
@@ -196,15 +197,29 @@ The first command is the text menu for customers, agents and administrators. The
 
 ```txt
 E-Surance/
-├── backend/
-│   ├── common/protocol.py   # 4-byte length header + JSON messages
-│   ├── server/              # network, service and data layers
-│   ├── client/              # server connection, text menu
-│   ├── peer/                # PeerNode: messages, file transfer, checksum
-│   ├── bridge.py            # HTTP bridge for the browser
-│   └── tests/               # automated tests
-├── frontend/
-│   └── ui/                  # React + Vite + Tailwind web app
-├── ARCHITECTURE.md
-└── README.md
+├── common/
+│   ├── __init__.py
+│   ├── protocol.py        # 4-byte length header + JSON messages
+│   └── console.py         # helpers for the text menus
+├── server/
+│   ├── __init__.py
+│   ├── database.py        # all SQL, five tables, one lock
+│   ├── handlers.py        # role checks, business rules, peer directory
+│   └── main.py            # starts the server on port 5000
+├── client/
+│   ├── __init__.py
+│   ├── api.py             # connection to the server (request/reply)
+│   └── main.py            # the text menu for customer, agent, admin
+├── peer/
+│   ├── __init__.py
+│   ├── node.py            # PeerNode class: chat and file transfer
+│   └── main.py            # standalone peer for the branch office
+├── tests/
+│   ├── __init__.py
+│   ├── test_esurance.py   # the 16 automated tests
+│   └── test_bridge.py     # 3 tests of the web bridge
+├── bridge.py              # web bridge: lets the browser use the system
+├── frontend/ui/           # React + Vite + Tailwind web app
+├── received/              # created automatically: documents a peer receives
+└── esurance.db            # created automatically: the SQLite database
 ```

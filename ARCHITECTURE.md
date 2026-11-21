@@ -4,12 +4,12 @@ E-Surance is an electronic insurance management system. It uses two models in
 one application. Records go through a central server (client-server). Messages
 and claim documents go directly between users (peer-to-peer).
 
-The backend (`backend/`) is Python: a server, the client programs, and a peer
-node. Between these programs, all communication uses TCP sockets from the Python
-standard library, with no RPC framework. The web frontend (`frontend/ui`) reaches
-the system only through the bridge (`backend/bridge.py`) on the user's own
-computer, which turns browser actions into the same protocol messages
-(Section 7). Module paths below are relative to `backend/`.
+The Python code is a server, the client programs, and a peer node. Between
+these programs, all communication uses TCP sockets from the Python standard
+library, with no RPC framework. The web frontend (`frontend/ui`) reaches the
+system only through the bridge (`bridge.py`) on the user's own computer, which
+turns browser actions into the same protocol messages (Section 7). Module paths
+below are relative to the project folder.
 
 Source: Section 2 of the E-Surance Project Documentation, with the module map
 and request flow taken from Sections 3, 4 and 7. Run commands are in the README.
@@ -92,7 +92,7 @@ Each type of data is on the model that fits it:
 | `bridge.py` | Each user's computer | The web bridge: for each browser login, one `EsuranceClient` and one `PeerNode`; HTTP API and live events for the browser |
 | `tests/test_esurance.py` | Tests | The 16 automated tests of the design, with a real server and real peers on free local ports |
 | `tests/test_bridge.py` | Tests | 3 tests of the bridge over HTTP: records, a message and a document between two logins, and the server down |
-| `../frontend/ui/` | Browser | React + Vite + Tailwind web app: a portal for each role at `/customer`, `/agent`, `/admin` |
+| `frontend/ui/` | Browser | React + Vite + Tailwind web app: a portal for each role at `/customer`, `/agent`, `/admin` |
 
 ## 3. The Server: Three Layers
 
@@ -225,7 +225,6 @@ SHA-256 value as the one that the server recorded.
 ## 8. Running the Tests
 
 ```
-cd backend
 python -m unittest -v
 ```
 

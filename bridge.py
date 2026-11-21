@@ -47,7 +47,7 @@ HISTORY_LIMIT = 500
 RESERVED_ACTIONS = {"LOGIN", "LOGOUT", "REGISTER"}
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_STATIC_DIR = os.path.join(HERE, "..", "frontend", "ui", "dist")
+DEFAULT_STATIC_DIR = os.path.join(HERE, "frontend", "ui", "dist")
 
 
 def _now():
